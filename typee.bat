@@ -6,6 +6,16 @@ setlocal enabledelayedexpansion
 :: Auto-detect editors using Everything (es.exe)
 :: ============================================
 
+:: Find es.exe
+set "ES_CMD="
+for %%p in (es.exe) do if not "%%~$PATH:p"=="" set "ES_CMD=es.exe"
+if not defined ES_CMD (
+    set "WINGET_DIR=%LOCALAPPDATA%\Microsoft\WinGet\Packages"
+    for /f "delims=" %%i in ('dir /s /b "!WINGET_DIR!\*es.exe" 2^>nul') do (
+        echo %%i | findstr /i "Everything.Cli" >nul && set "ES_CMD=%%i"
+    )
+)
+
 :: No arguments - show help
 if "%~1"=="" (
     echo typee - Editor Abstraction Layer v2
@@ -22,6 +32,11 @@ if "%~1"=="" (
     echo   --anti    Antigravity
     echo.
     echo Editors are auto-detected via Everything ^(es.exe^)
+    if defined ES_CMD (
+        echo es.exe: !ES_CMD!
+    ) else (
+        echo WARNING: es.exe not found
+    )
     exit /b 0
 )
 
@@ -54,6 +69,7 @@ if /i "%OPTION%"=="--n" (
 )
 
 :: Editor mappings: option -> exe name
+set "EXE_NAME="
 if /i "%OPTION%"=="--vs" set "EXE_NAME=Code.exe"
 if /i "%OPTION%"=="--cursor" set "EXE_NAME=Cursor.exe"
 if /i "%OPTION%"=="--wind" set "EXE_NAME=Windsurf.exe"
@@ -64,10 +80,19 @@ if not defined EXE_NAME (
     exit /b 1
 )
 
-:: Use es.exe to find the editor
-for /f "delims=" %%i in ('es -n 1 "%EXE_NAME%" 2^>nul') do (
-    set "EDITOR_PATH=%%i"
+:: Check es.exe available
+if not defined ES_CMD (
+    echo [typee] es.exe not found, falling back to Notepad
+    start "" notepad "!FILE!"
+    exit /b
 )
+
+:: Use es.exe to find the editor (via temp file to handle long paths)
+set "TMPFILE=%TEMP%\typee_result.tmp"
+"!ES_CMD!" -n 1 "!EXE_NAME!" > "!TMPFILE!" 2>nul
+set "EDITOR_PATH="
+set /p EDITOR_PATH=<"!TMPFILE!"
+del "!TMPFILE!" 2>nul
 
 :: Found it - launch
 if defined EDITOR_PATH (
@@ -76,5 +101,5 @@ if defined EDITOR_PATH (
 )
 
 :: Fallback to notepad
-echo [typee] %EXE_NAME% not found, falling back to Notepad
+echo [typee] !EXE_NAME! not found, falling back to Notepad
 start "" notepad "!FILE!"
