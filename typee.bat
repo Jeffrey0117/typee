@@ -2,29 +2,13 @@
 setlocal enabledelayedexpansion
 
 :: ============================================
-:: typee - Editor Abstraction Layer
+:: typee - Editor Abstraction Layer v2
+:: Auto-detect editors using Everything (es.exe)
 :: ============================================
-:: Usage: typee [--option] <file>
-::
-:: Options:
-::   (none)    type (CLI print)
-::   --m       more
-::   --n       Notepad
-::   --vs      VS Code
-::   --cursor  Cursor
-::   --wind    Windsurf
-::   --anti    Antigravity
-:: ============================================
-
-:: === Editor Paths (edit these when switching editors) ===
-set "EDITOR_VS=code"
-set "EDITOR_CURSOR=cursor"
-set "EDITOR_WIND=windsurf"
-set "EDITOR_ANTI=antigravity"
 
 :: No arguments - show help
 if "%~1"=="" (
-    echo typee - Editor Abstraction Layer
+    echo typee - Editor Abstraction Layer v2
     echo.
     echo Usage: typee [option] ^<file^>
     echo.
@@ -36,6 +20,8 @@ if "%~1"=="" (
     echo   --cursor  Cursor
     echo   --wind    Windsurf
     echo   --anti    Antigravity
+    echo.
+    echo Editors are auto-detected via Everything ^(es.exe^)
     exit /b 0
 )
 
@@ -59,17 +45,36 @@ if "%FILE%"=="" (
 :: Handle options
 if /i "%OPTION%"=="--m" (
     more "!FILE!"
-) else if /i "%OPTION%"=="--n" (
+    exit /b
+)
+
+if /i "%OPTION%"=="--n" (
     start "" notepad "!FILE!"
-) else if /i "%OPTION%"=="--vs" (
-    start "" %EDITOR_VS% "!FILE!"
-) else if /i "%OPTION%"=="--cursor" (
-    start "" %EDITOR_CURSOR% "!FILE!"
-) else if /i "%OPTION%"=="--wind" (
-    start "" %EDITOR_WIND% "!FILE!"
-) else if /i "%OPTION%"=="--anti" (
-    start "" %EDITOR_ANTI% "!FILE!"
-) else (
+    exit /b
+)
+
+:: Editor mappings: option -> exe name
+if /i "%OPTION%"=="--vs" set "EXE_NAME=Code.exe"
+if /i "%OPTION%"=="--cursor" set "EXE_NAME=Cursor.exe"
+if /i "%OPTION%"=="--wind" set "EXE_NAME=Windsurf.exe"
+if /i "%OPTION%"=="--anti" set "EXE_NAME=Antigravity.exe"
+
+if not defined EXE_NAME (
     echo Unknown option: %OPTION%
     exit /b 1
 )
+
+:: Use es.exe to find the editor
+for /f "delims=" %%i in ('es -n 1 "%EXE_NAME%" 2^>nul') do (
+    set "EDITOR_PATH=%%i"
+)
+
+:: Found it - launch
+if defined EDITOR_PATH (
+    start "" "!EDITOR_PATH!" "!FILE!"
+    exit /b
+)
+
+:: Fallback to notepad
+echo [typee] %EXE_NAME% not found, falling back to Notepad
+start "" notepad "!FILE!"
